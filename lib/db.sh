@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS instance_dirs (
     dir_name TEXT NOT NULL,
     dir_path TEXT NOT NULL,
     is_primary INTEGER NOT NULL DEFAULT 0,
+    read_only INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (instance_name, dir_name)
 );
 CREATE TABLE IF NOT EXISTS bases (
@@ -77,6 +78,11 @@ EOF
     # Migration: add ssh_user column to instances table
     if ! column_exists instances ssh_user; then
         sqlite3 "$DB_FILE" "ALTER TABLE instances ADD COLUMN ssh_user TEXT;"
+    fi
+
+    # Migration: add read_only column to instance_dirs table
+    if ! column_exists instance_dirs read_only; then
+        sqlite3 "$DB_FILE" "ALTER TABLE instance_dirs ADD COLUMN read_only INTEGER NOT NULL DEFAULT 0;"
     fi
 }
 
