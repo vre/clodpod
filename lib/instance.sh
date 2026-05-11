@@ -216,7 +216,9 @@ vm_shell() {
                 continue
             fi
 
-            dir_args+=("--dir" "${dir_name}:${dir_path}")
+            local dir_entry="${dir_name}:${dir_path}"
+            [[ "$is_read_only" -eq 1 ]] && dir_entry="${dir_entry}:ro"
+            dir_args+=("--dir" "$dir_entry")
             if [[ "$is_primary" -eq 1 ]] && [[ -z "$primary_name" ]]; then
                 primary_name="$dir_name"
                 primary_path="$dir_path"
