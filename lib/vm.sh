@@ -28,6 +28,21 @@ vm_validate_name() {
     fi
 }
 
+# Parse "name:path[:ro]" → echoes "name|path|0_or_1", exit 1 on invalid input.
+parse_dir_spec() {
+    local spec="$1"
+    local read_only=0
+    if [[ "$spec" == *:ro ]]; then
+        read_only=1
+        spec="${spec%:ro}"
+    fi
+    [[ "$spec" == *:* ]] || return 1
+    local name="${spec%%:*}"
+    local path="${spec#*:}"
+    [[ -n "$name" && -n "$path" ]] || return 1
+    printf '%s|%s|%d\n' "$name" "$path" "$read_only"
+}
+
 parse_ram_size() {
     local input="${1:-}"
     local value
