@@ -141,7 +141,7 @@ EOF
 vm_get_instance_dirs() {
     local instance_name="$1"
     sqlite3 -separator '|' "$DB_FILE" <<EOF
-SELECT dir_name, dir_path, is_primary
+SELECT dir_name, dir_path, is_primary, COALESCE(read_only, 0)
 FROM instance_dirs
 WHERE instance_name = '$(sql_escape "$instance_name")'
 ORDER BY is_primary DESC, rowid ASC;

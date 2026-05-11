@@ -153,10 +153,18 @@ EOF
             local dir_name
             local dir_path
             local is_primary
-            while IFS='|' read -r dir_name dir_path is_primary; do
+            local is_read_only
+            while IFS='|' read -r dir_name dir_path is_primary is_read_only; do
                 local entry="${dir_name}:${dir_path}"
+                local flags=""
                 if [[ "$is_primary" -eq 1 ]]; then
-                    entry="$entry (primary)"
+                    flags="primary"
+                fi
+                if [[ "$is_read_only" -eq 1 ]]; then
+                    flags="${flags:+${flags},}ro"
+                fi
+                if [[ -n "$flags" ]]; then
+                    entry="$entry ($flags)"
                 fi
                 if [[ -n "$dirs" ]]; then
                     dirs="$dirs, "
@@ -201,7 +209,8 @@ vm_shell() {
         local dir_name
         local dir_path
         local is_primary
-        while IFS='|' read -r dir_name dir_path is_primary; do
+        local is_read_only
+        while IFS='|' read -r dir_name dir_path is_primary is_read_only; do
             if [[ ! -d "$dir_path" ]]; then
                 warn "Instance directory missing on host: $dir_name ($dir_path)"
                 continue
@@ -473,6 +482,7 @@ vm_create() {
     local create_base="default"
     local dir_names=()
     local dir_paths=()
+    local dir_read_onlys=()
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --base)
@@ -486,16 +496,19 @@ vm_create() {
                 shift 2
                 ;;
             --dir)
-                [[ $# -ge 2 ]] || abort "Error: --dir requires name:path"
+                [[ $# -ge 2 ]] || abort "Error: --dir requires name:path[:ro]"
 
                 local dir_spec="$2"
                 shift 2
 
-                [[ "$dir_spec" == *:* ]] || abort "Error: invalid --dir value ($dir_spec)"
-                local dir_name="${dir_spec%%:*}"
-                local dir_path_spec="${dir_spec#*:}"
-                [[ -n "$dir_name" ]] || abort "Error: missing directory name in --dir"
-                [[ -n "$dir_path_spec" ]] || abort "Error: missing directory path in --dir"
+                local parsed
+                parsed="$(parse_dir_spec "$dir_spec")" || abort "Error: invalid --dir value ($dir_spec)"
+
+                local dir_name="${parsed%%|*}"
+                local rest="${parsed#*|}"
+                local dir_path_spec="${rest%|*}"
+                local dir_read_only="${rest##*|}"
+
                 [[ "$dir_name" != "__install" ]] || abort "Error: reserved directory name (__install)"
                 if array_contains "$dir_name" ${dir_names[@]+"${dir_names[@]}"}; then
                     abort "Error: duplicate --dir name ($dir_name)"
@@ -509,6 +522,7 @@ vm_create() {
 
                 dir_names+=("$dir_name")
                 dir_paths+=("$dir_path")
+                dir_read_onlys+=("$dir_read_only")
                 ;;
             *)
                 abort "Error: unknown create option ($1)"
@@ -544,7 +558,9 @@ vm_create() {
     local vm_args=()
     local i=0
     while [[ "$i" -lt "${#dir_names[@]}" ]]; do
-        vm_args+=("--dir" "${dir_names[$i]}:${dir_paths[$i]}")
+        local entry="${dir_names[$i]}:${dir_paths[$i]}"
+        [[ "${dir_read_onlys[$i]}" -eq 1 ]] && entry="${entry}:ro"
+        vm_args+=("--dir" "$entry")
         i=$((i + 1))
     done
     vm_args+=("--dir" "__install:$DATA_DIR/guest")
@@ -580,8 +596,8 @@ VALUES ('$(sql_escape "$instance_name")', '$(sql_escape "$final_vm_name")', $ram
             is_primary=1
         fi
         sql="${sql}
-INSERT INTO instance_dirs (instance_name, dir_name, dir_path, is_primary)
-VALUES ('$(sql_escape "$instance_name")', '$(sql_escape "${dir_names[$i]}")', '$(sql_escape "${dir_paths[$i]}")', $is_primary);"
+INSERT INTO instance_dirs (instance_name, dir_name, dir_path, is_primary, read_only)
+VALUES ('$(sql_escape "$instance_name")', '$(sql_escape "${dir_names[$i]}")', '$(sql_escape "${dir_paths[$i]}")', $is_primary, ${dir_read_onlys[$i]});"
         i=$((i + 1))
     done
     sql="${sql}
