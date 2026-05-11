@@ -112,12 +112,14 @@ Create a named VM instance by cloning a base image.
 Options:
   --base PROFILE    Base image to clone (default: 'default')
   --ram SIZE        Fixed RAM for this instance (e.g. 8G, 4096M, 'default' for budget)
-  --dir name:path   Mount host directory into VM (repeatable, first is primary)
+  --dir name:path[:ro]
+                    Mount host directory into VM. Repeatable, first is primary.
+                    Append :ro for read-only mount.
 
 Examples:
   clod create dev --dir project:/Users/me/src/app
   clod create dev --ram 8G --base custom --dir work:$(pwd)
-  clod create worker --dir repo:$(pwd) --dir data:/Volumes/data
+  clod create worker --dir repo:$(pwd) --dir data:/Volumes/data:ro
 EOF
 }
 

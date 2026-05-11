@@ -85,6 +85,9 @@ or worktree branches. Each is a cheap APFS CoW clone of the base VM.
     clod create myproject --dir project:/path/to/project
     clod create feature-a --dir work:/path/to/repo/.worktrees/feature-a
 
+    # Mount a directory read-only with :ro suffix
+    clod create reader --dir code:/path/to/repo:ro
+
     # SSH into a named VM
     clod shell myproject
 
