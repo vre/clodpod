@@ -35,6 +35,23 @@ Describe 'lib/db.sh'
             When call init_db
             The status should be success
         End
+
+        It 'migrates legacy instance_dirs without read_only column'
+            DB_FILE="$TEST_TMPDIR/legacy.sqlite"
+            # Create pre-migration schema (no read_only column)
+            sqlite3 "$DB_FILE" "CREATE TABLE instance_dirs (
+                instance_name TEXT NOT NULL,
+                dir_name TEXT NOT NULL,
+                dir_path TEXT NOT NULL,
+                is_primary INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (instance_name, dir_name)
+            );"
+            sqlite3 "$DB_FILE" "INSERT INTO instance_dirs (instance_name, dir_name, dir_path, is_primary) VALUES ('old', 'code', '/path', 1);"
+            init_db
+            read_only_value=$(sqlite3 "$DB_FILE" "SELECT COALESCE(read_only, 0) FROM instance_dirs WHERE instance_name='old';")
+            When call echo "$read_only_value"
+            The output should eq "0"
+        End
     End
 
     Describe 'instance operations'
